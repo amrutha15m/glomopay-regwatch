@@ -243,7 +243,57 @@ def generate_full_analysis(text: str) -> dict:
     }
 
 
+_GENERAL_GREETINGS = {"hello", "hi", "hey", "howdy", "greetings", "sup", "yo"}
+_GENERAL_HELP = {"help", "what can you do", "how does this work", "what are you", "who are you", "capabilities"}
+_GENERAL_SOURCE = {"view source", "source code", "show source", "see source", "open source"}
+_GENERAL_ABOUT = {"what is this", "what is glomopay", "about this", "about glomopay", "explain this app"}
+
+
+def _classify_general_question(question: str) -> str | None:
+    q = question.lower().strip().rstrip("?!")
+    if q in _GENERAL_GREETINGS or any(q.startswith(g) for g in _GENERAL_GREETINGS):
+        return "greeting"
+    if any(phrase in q for phrase in _GENERAL_HELP):
+        return "help"
+    if any(phrase in q for phrase in _GENERAL_SOURCE):
+        return "source"
+    if any(phrase in q for phrase in _GENERAL_ABOUT):
+        return "about"
+    return None
+
+
+_GENERAL_RESPONSES = {
+    "greeting": (
+        "Hello! I'm the GlomoPay RegWatch AI assistant. I can help you understand this regulatory document — "
+        "answering questions about compliance requirements, key obligations, deadlines, and how they affect GlomoPay's operations. "
+        "What would you like to know?"
+    ),
+    "help": (
+        "Here's what I can help you with:\n"
+        "• Answer questions about this regulatory document\n"
+        "• Identify compliance obligations and deadlines\n"
+        "• Explain how the regulation affects GlomoPay's operations\n"
+        "• Find specific sections with citations\n\n"
+        "Just type your question and I'll search the document for the most relevant answer."
+    ),
+    "source": (
+        "GlomoPay RegWatch is built with React + TypeScript (frontend) and Python/FastAPI (backend). "
+        "The AI layer supports multiple providers: Gemini, Anthropic Claude, and OpenAI — switchable via the AI_PROVIDER environment variable. "
+        "Document processing uses chunked text extraction with citation tracking."
+    ),
+    "about": (
+        "GlomoPay RegWatch is a regulatory intelligence platform for GlomoPay — an IFSC-licensed payment institution in GIFT City, India. "
+        "It helps compliance teams track, analyze, and act on regulatory updates from RBI, IFSCA, SEBI, and other bodies. "
+        "Each document is auto-analyzed for relevance, key action items, and compliance implications."
+    ),
+}
+
+
 def answer_document_question(question: str, chunks: list) -> dict:
+    category = _classify_general_question(question)
+    if category:
+        return {"answer": _GENERAL_RESPONSES[category], "citations": []}
+
     if not chunks:
         return {"answer": "No document content available to search.", "citations": []}
 

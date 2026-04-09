@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, MessageCircle, Loader2 } from 'lucide-react'
+import { Send, MessageCircle, Loader2, Trash2 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import CitationChip from '@/components/CitationChip'
-import { askQuestion } from '@/api/client'
+import { askQuestion, clearChat } from '@/api/client'
 import { cn } from '@/lib/utils'
 import type { ChatMessage } from '@/types'
 
@@ -12,9 +13,10 @@ interface QAPanelProps {
   documentId: number
   initialMessages: ChatMessage[]
   embedded?: boolean
+  clearTrigger?: number
 }
 
-export default function QAPanel({ documentId, initialMessages, embedded }: QAPanelProps) {
+export default function QAPanel({ documentId, initialMessages, embedded, clearTrigger }: QAPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -23,6 +25,15 @@ export default function QAPanel({ documentId, initialMessages, embedded }: QAPan
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    if (clearTrigger) setMessages([])
+  }, [clearTrigger])
+
+  const handleClear = async () => {
+    await clearChat(documentId)
+    setMessages([])
+  }
 
   const handleSend = async () => {
     if (!input.trim() || loading) return
@@ -77,9 +88,20 @@ export default function QAPanel({ documentId, initialMessages, embedded }: QAPan
     )}>
       {/* Header — hidden when embedded (drawer provides its own header) */}
       {!embedded && (
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 shrink-0">
-        <MessageCircle className="w-4 h-4 text-blue-400" />
-        <span className="text-sm font-medium text-slate-300">Ask About This Circular</span>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 shrink-0">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="w-4 h-4 text-blue-400" />
+          <span className="text-sm font-medium text-slate-300">Ask About This Circular</span>
+        </div>
+        {messages.length > 0 && (
+          <button
+            onClick={handleClear}
+            title="Clear conversation"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-red-400 hover:bg-slate-800 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
       )}
 
@@ -109,7 +131,23 @@ export default function QAPanel({ documentId, initialMessages, embedded }: QAPan
                         : "bg-slate-800 text-slate-200 rounded-bl-sm"
                     )}
                   >
-                    {msg.message}
+                    {msg.role === 'user' ? msg.message : (
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+                          strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+                          em: ({ children }) => <em className="italic text-slate-300">{children}</em>,
+                          ul: ({ children }) => <ul className="list-disc pl-4 mb-1.5 space-y-0.5">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal pl-4 mb-1.5 space-y-0.5">{children}</ol>,
+                          li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                          code: ({ children }) => <code className="bg-slate-700 text-blue-300 rounded px-1 py-0.5 font-mono text-[11px]">{children}</code>,
+                          pre: ({ children }) => <pre className="bg-slate-700 rounded p-2 my-1.5 overflow-x-auto font-mono text-[11px] text-slate-200">{children}</pre>,
+                          a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer" className="text-blue-400 underline hover:text-blue-300">{children}</a>,
+                        }}
+                      >
+                        {msg.message}
+                      </ReactMarkdown>
+                    )}
                   </div>
 
                   {msg.role === 'assistant' && msg.citations.length > 0 && (
@@ -137,7 +175,7 @@ export default function QAPanel({ documentId, initialMessages, embedded }: QAPan
 
       {/* Input */}
       <div className="border-t border-slate-800 p-3 shrink-0">
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-end">
           <Textarea
             placeholder="Ask a question about this circular... (Enter to send)"
             value={input}
@@ -151,9 +189,9 @@ export default function QAPanel({ documentId, initialMessages, embedded }: QAPan
             size="icon"
             onClick={handleSend}
             disabled={!input.trim() || loading}
-            className="h-full w-9 bg-blue-600 hover:bg-blue-500 shrink-0"
+            className="h-9 w-9 bg-blue-600 hover:bg-blue-500 shrink-0 flex items-center justify-center"
           >
-            <Send className="w-3.5 h-3.5" />
+            <Send className="w-4 h-4" />
           </Button>
         </div>
       </div>

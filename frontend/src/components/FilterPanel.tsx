@@ -93,7 +93,7 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
         <SelectContent>
           <SelectItem value="all">All Sources</SelectItem>
           <SelectItem value="IFSCA">IFSCA</SelectItem>
-          <SelectItem value="RBI">RBI</SelectItem>
+          <SelectItem value="SEBI">SEBI</SelectItem>
           <SelectItem value="Upload">Uploads</SelectItem>
         </SelectContent>
       </Select>

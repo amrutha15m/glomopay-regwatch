@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from models.models import Document, DocumentChunk, AIAnalysis, IngestionRun
 from services import pdf_service, ai_service
 from connectors import ifsca as ifsca_connector
-from connectors import rbi as rbi_connector
+from connectors import sebi as sebi_connector
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 CONNECTOR_MAP = {
     "IFSCA": ifsca_connector,
-    "RBI": rbi_connector,
+    "SEBI": sebi_connector,
 }
 
 

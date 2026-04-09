@@ -1,36 +1,31 @@
 """
-IFSCA connector — fetches circulars from https://ifsca.gov.in
+IFSCA connector — fetches circulars via the JSON API.
+API: https://ifsca.gov.in/Legal/GetLegalData
 """
-import re
 import logging
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional
-from bs4 import BeautifulSoup
 from dateutil import parser as date_parser
 
 logger = logging.getLogger(__name__)
 
-IFSCA_CIRCULARS_URL = "https://ifsca.gov.in/Circular"
 IFSCA_BASE_URL = "https://ifsca.gov.in"
+IFSCA_API_URL = "https://ifsca.gov.in/Legal/GetLegalData"
+IFSCA_DOWNLOAD_URL = "https://ifsca.gov.in/CommonDirect/DownloadFile"
+
+# EncryptedId from the circulars listing page URL
+ENCRYPTED_ID = "wF6kttc1JR8="
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
+    "Accept": "application/json, text/javascript, */*",
+    "Referer": "https://ifsca.gov.in/Legal/Index/wF6kttc1JR8%3D",
 }
-
-DATE_PATTERNS = [
-    r'\d{1,2}[/-]\d{1,2}[/-]\d{4}',
-    r'\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4}',
-    r'(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}',
-]
-
-SKIP_TITLES = {"home", "about", "contact", "sitemap", "search", "login", "register"}
-DOC_KEYWORDS = {"circular", "notification", "guideline", "regulation", "direction", "framework", "order", "gazette"}
 
 
 def _parse_date(date_str: str) -> Optional[str]:
+    """Parse DD/MM/YYYY or any date string → YYYY-MM-DD."""
     if not date_str:
         return None
     try:
@@ -39,80 +34,64 @@ def _parse_date(date_str: str) -> Optional[str]:
         return None
 
 
-def _extract_date_from_text(text: str) -> Optional[str]:
-    for pattern in DATE_PATTERNS:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            result = _parse_date(match.group())
-            if result:
-                return result
-    return None
+def _is_recent(date_str: Optional[str], days: int = 1) -> bool:
+    if not date_str:
+        return True
+    try:
+        pub_date = date_parser.parse(date_str, dayfirst=True).date()
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).date()
+        return pub_date >= cutoff
+    except Exception:
+        return True
 
 
 def fetch_publications() -> list:
     publications = []
 
+    params = {
+        "PageNumber": 1,
+        "PageSize": 25,
+        "SearchText": "",
+        "SortCol": "PublishDate",
+        "SortType": "desc",
+        "EncryptedId": ENCRYPTED_ID,
+        "DateFrom": "",
+        "DateTo": "",
+        "AIlistType": "",
+    }
+
     try:
-        logger.info(f"Fetching IFSCA circulars from {IFSCA_CIRCULARS_URL}")
-        resp = requests.get(IFSCA_CIRCULARS_URL, headers=HEADERS, timeout=30)
+        logger.info(f"Fetching IFSCA legal data from API")
+        resp = requests.get(IFSCA_API_URL, headers=HEADERS, params=params, timeout=30)
         resp.raise_for_status()
 
-        soup = BeautifulSoup(resp.content, "lxml")
+        data = resp.json()
+        items = data.get("data", {}).get("LegalMasterModelList") or []
+        logger.info(f"IFSCA API returned {len(items)} items")
 
-        # Try tables first, then any anchors in the main content
-        seen_urls = set()
+        for item in items:
+            title = (item.get("Title") or "").strip()
+            file_id = item.get("PhotoFileID") or ""
+            file_name = item.get("PhotoFileName") or ""
+            publish_date_raw = item.get("PublishDate") or ""
 
-        for link in soup.find_all("a", href=True):
-            href = link.get("href", "").strip()
-            title = link.get_text(strip=True)
-
-            if not title or len(title) < 10:
-                continue
-            if title.lower() in SKIP_TITLES:
-                continue
-            if not href:
+            if not title or not file_id or not file_name:
                 continue
 
-            # Build full URL
-            if href.startswith("http"):
-                full_url = href
-            elif href.startswith("/"):
-                full_url = IFSCA_BASE_URL + href
-            else:
-                full_url = IFSCA_BASE_URL + "/" + href
+            pub_date = _parse_date(publish_date_raw)
 
-            if full_url in seen_urls:
+            if not _is_recent(publish_date_raw, days=4):
                 continue
 
-            # Only keep circular-like links
-            url_lower = full_url.lower()
-            title_lower = title.lower()
-            is_relevant = (
-                ".pdf" in url_lower or
-                "circular" in url_lower or
-                "notification" in url_lower or
-                any(kw in title_lower for kw in DOC_KEYWORDS)
-            )
-            if not is_relevant:
-                continue
-
-            # Extract date from surrounding context
-            parent = link.parent
-            row_text = parent.get_text(separator=" ", strip=True) if parent else title
-            pub_date = _extract_date_from_text(row_text) or datetime.now().strftime("%Y-%m-%d")
-
-            pdf_url = full_url if ".pdf" in url_lower else None
+            pdf_url = f"{IFSCA_DOWNLOAD_URL}?id={file_id}&fileName={file_name}"
 
             publications.append({
                 "title": title[:500],
-                "source_url": full_url,
-                "publication_date": pub_date,
+                "source_url": pdf_url,
+                "publication_date": pub_date or datetime.now().strftime("%Y-%m-%d"),
                 "pdf_url": pdf_url,
                 "description": "",
             })
-            seen_urls.add(full_url)
-
-        logger.info(f"IFSCA: found {len(publications)} publications")
 
     except requests.RequestException as e:
         logger.error(f"Network error fetching IFSCA: {e}")
@@ -121,6 +100,7 @@ def fetch_publications() -> list:
         logger.error(f"Error fetching IFSCA: {e}")
         raise
 
+    logger.info(f"IFSCA: {len(publications)} publications in last 4 days")
     return publications[:20]
 
 

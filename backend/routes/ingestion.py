@@ -8,7 +8,7 @@ from services import ingestion_service
 
 router = APIRouter(prefix="/api/ingestion", tags=["ingestion"])
 
-AVAILABLE_SOURCES = ["IFSCA", "RBI"]
+AVAILABLE_SOURCES = ["IFSCA", "SEBI"]
 
 
 def _run_ingestion_bg(sources):

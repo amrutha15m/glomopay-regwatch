@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText } from 'lucide-react'
+import { FileText, RefreshCw } from 'lucide-react'
 import Layout from '@/components/Layout'
 import StatsCards from '@/components/StatsCards'
 import IngestionStatusWidget from '@/components/IngestionStatus'
@@ -31,6 +31,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [isFetching, setIsFetching] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
+  const [autoFetched, setAutoFetched] = useState(false)
 
   const loadDocuments = useCallback(async (f: DocumentFilters) => {
     try {
@@ -90,15 +91,22 @@ export default function DashboardPage() {
     try {
       await triggerIngestion(source)
       await reprocessAll()
-      setTimeout(() => {
-        loadAll()
-        setIsFetching(false)
-      }, 8000)
+      await new Promise((resolve) => setTimeout(resolve, 8000))
+      await loadAll()
     } catch (e) {
       console.error('Ingestion trigger failed', e)
+    } finally {
       setIsFetching(false)
     }
   }
+
+  // Auto-fetch on initial load when database has no documents
+  useEffect(() => {
+    if (!loading && stats !== null && stats.total === 0 && !autoFetched) {
+      setAutoFetched(true)
+      handleFetch()
+    }
+  }, [loading, stats]) // eslint-disable-line
 
   const handleToggleReviewed = async (id: number) => {
     try {
@@ -127,7 +135,13 @@ export default function DashboardPage() {
       onUpload={() => setShowUpload(true)}
       isFetching={isFetching}
     >
-      <div className="max-w-[1400px] mx-auto p-6 overflow-y-auto h-[calc(100vh-3.5rem)]">
+      {isFetching && (
+        <div className="fixed inset-x-0 top-14 bottom-0 z-40 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
+          <RefreshCw className="w-6 h-6 text-blue-400 animate-spin" />
+          <p className="text-sm font-medium text-slate-300">Fetching latest documents…</p>
+        </div>
+      )}
+      <div className={`max-w-[1400px] mx-auto p-6 h-[calc(100vh-3.5rem)] ${isFetching ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {/* Stats cards — clickable quick filters */}
         <StatsCards
           stats={stats}

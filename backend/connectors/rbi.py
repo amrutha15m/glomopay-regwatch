@@ -6,7 +6,7 @@ import re
 import logging
 import feedparser
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from bs4 import BeautifulSoup
 from dateutil import parser as date_parser
@@ -147,6 +147,22 @@ def _fetch_from_html() -> list:
     return publications
 
 
+def _is_recent(pub: dict, days: int = 2) -> bool:
+    """Return True if publication_date is within the last `days` days (or unparseable)."""
+    date_str = pub.get("publication_date")
+    if not date_str:
+        return True  # include if unknown
+    try:
+        pub_date = date_parser.parse(date_str)
+        # Make naive datetimes comparable
+        if pub_date.tzinfo is None:
+            pub_date = pub_date.replace(tzinfo=timezone.utc)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        return pub_date >= cutoff
+    except Exception:
+        return True  # include if unparseable
+
+
 def fetch_publications() -> list:
     publications = _fetch_from_rss()
 
@@ -157,8 +173,9 @@ def fetch_publications() -> list:
             if not any(x["source_url"] == p["source_url"] for x in publications):
                 publications.append(p)
 
-    logger.info(f"RBI: found {len(publications)} total publications")
-    return publications[:20]
+    recent = [p for p in publications if _is_recent(p, days=2)]
+    logger.info(f"RBI: found {len(publications)} total, {len(recent)} in last 2 days")
+    return recent[:20]
 
 
 def normalize_publication(pub: dict) -> dict:

@@ -189,6 +189,16 @@ def toggle_reviewed(document_id: int, db: Session = Depends(get_db)):
     return {"id": doc.id, "reviewed": doc.reviewed}
 
 
+@router.delete("/{document_id}/chat")
+def clear_chat(document_id: int, db: Session = Depends(get_db)):
+    doc = db.query(Document).filter(Document.id == document_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    db.query(ChatMessage).filter(ChatMessage.document_id == document_id).delete()
+    db.commit()
+    return {"ok": True}
+
+
 @router.post("/{document_id}/question")
 def ask_question(document_id: int, request: QuestionRequest, db: Session = Depends(get_db)):
     doc = db.query(Document).filter(Document.id == document_id).first()

@@ -28,6 +28,10 @@ export const toggleReviewed = async (id: number): Promise<{ id: number; reviewed
   return data
 }
 
+export const clearChat = async (id: number) => {
+  await api.delete(`/documents/${id}/chat`)
+}
+
 export const askQuestion = async (id: number, question: string) => {
   const { data } = await api.post(`/documents/${id}/question`, { question })
   return data as { answer: string; citations: any[] }

@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft, ExternalLink, CheckCircle2, Circle,
   ChevronDown, ChevronUp, BarChart3, MessageCircle,
-  FileText, Lightbulb, ListChecks, X, RefreshCw
+  FileText, Lightbulb, ListChecks, X, RefreshCw, Trash2
 } from 'lucide-react'
 import Layout from '@/components/Layout'
 import QAPanel from '@/components/QAPanel'
@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import CitationChip from '@/components/CitationChip'
 import AnalysisCitations from '@/components/AnalysisCitations'
-import { fetchDocument, toggleReviewed, fetchEvaluation, reprocessDocument } from '@/api/client'
+import { fetchDocument, toggleReviewed, fetchEvaluation, reprocessDocument, clearChat } from '@/api/client'
 import { cn } from '@/lib/utils'
 import type { Document, EvaluationMetrics, Citation } from '@/types'
 
@@ -51,6 +51,7 @@ export default function DocumentPage() {
   const [showEval, setShowEval] = useState(false)
   const [chunksExpanded, setChunksExpanded] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
+  const [chatClearTrigger, setChatClearTrigger] = useState(0)
   const [isReloading, setIsReloading] = useState(false)
 
   const loadDoc = async () => {
@@ -136,7 +137,7 @@ export default function DocumentPage() {
   const chunks = document.chunks ?? []
   const chatMessages = document.chat_messages ?? []
   const tier = relevanceTier(analysis?.relevance_score)
-  const msgCount = chatMessages.length
+  const msgCount = chatClearTrigger > 0 ? 0 : chatMessages.length
 
   return (
     <Layout>
@@ -430,17 +431,26 @@ export default function DocumentPage() {
             <MessageCircle className="w-4 h-4 text-blue-400" />
             <span className="text-sm font-semibold text-slate-200">Ask About This Circular</span>
           </div>
-          <button
-            onClick={() => setChatOpen(false)}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={async () => { await clearChat(document.id); setChatClearTrigger(t => t + 1) }}
+              title="Clear conversation"
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-red-400 hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setChatOpen(false)}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Q&A panel fills remaining height */}
         <div className="flex-1 overflow-hidden">
-          <QAPanel documentId={document.id} initialMessages={chatMessages} embedded />
+          <QAPanel documentId={document.id} initialMessages={chatMessages} embedded clearTrigger={chatClearTrigger} />
         </div>
       </div>
     </Layout>
