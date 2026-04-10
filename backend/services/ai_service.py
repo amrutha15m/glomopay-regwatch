@@ -37,6 +37,15 @@ Core operations: remittance processing, KYC onboarding, transaction monitoring, 
 # PROMPTS
 # ============================================================
 
+def _title_prompt(text: str) -> str:
+    return f"""Extract the official title of this regulatory document. Return only the title — no explanation, no punctuation around it.
+
+Document:
+{text[:3000]}
+
+Title:"""
+
+
 def _summary_prompt(text: str) -> str:
     return f"""You are a regulatory compliance expert. Summarize this regulatory document in 3-5 clear sentences for a compliance officer. Focus on what the regulation requires, who it applies to, and key deadlines.
 
@@ -118,6 +127,8 @@ Provide a clear answer and note which excerpts you cited as: Sources: [citation 
 # ============================================================
 
 def _call_mock(prompt: str) -> str:
+    if "Title:" in prompt and "Extract the official title" in prompt:
+        return "Regulatory Circular"
     if "JSON array" in prompt and "tags" in prompt.lower():
         return '["AML", "KYC", "Compliance", "Regulatory"]'
     if "JSON array" in prompt and "action" in prompt.lower():
@@ -179,6 +190,12 @@ def _call_llm(prompt: str) -> str:
 # ============================================================
 # PUBLIC INTERFACE
 # ============================================================
+
+def generate_title(text: str) -> str:
+    if not text or len(text.strip()) < 20:
+        return ""
+    return _call_llm(_title_prompt(text)).strip()
+
 
 def generate_summary(text: str) -> str:
     if not text or len(text.strip()) < 50:

@@ -48,7 +48,7 @@ export const uploadDocument = async (file: File) => {
   const { data } = await axios.post('/api/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
-  return data as { document_id: number; title: string; ingestion_status: string; message: string }
+  return data as { document_id: number; title: string; filename: string; ingestion_status: string; message: string }
 }
 
 export const submitFeedback = async (documentId: number, feedback: Feedback) => {

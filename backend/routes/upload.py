@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models.models import Document
-from services import ingestion_service
+from services import ingestion_service, pdf_service, ai_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["upload"])
@@ -34,7 +34,10 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
     with open(filepath, "wb") as f:
         f.write(content)
 
-    title = file.filename.replace(".pdf", "").replace("_", " ").replace("-", " ").strip()
+    fallback_title = file.filename.replace(".pdf", "").replace("_", " ").replace("-", " ").strip()
+    raw_text = pdf_service.extract_text_from_pdf(filepath)
+    ai_title = ai_service.generate_title(raw_text) if raw_text else ""
+    title = ai_title or fallback_title
     source_url = f"local://uploads/{filename}"
 
     existing = db.query(Document).filter(Document.source_url == source_url).first()
@@ -59,6 +62,7 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
     return {
         "document_id": doc.id,
         "title": doc.title,
+        "filename": file.filename,
         "ingestion_status": doc.ingestion_status,
         "message": "Document uploaded and processed successfully",
     }

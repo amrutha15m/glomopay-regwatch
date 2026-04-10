@@ -12,7 +12,7 @@ SEED_DATA = [
         "title": "IFSCA Circular on AML/CFT Framework for IFSC Units",
         "source": "IFSCA",
         "publication_date": "2024-01-15",
-        "source_url": "https://ifsca.gov.in/circular/sample-aml-cft-2024",
+        "source_url": "https://ifsca.gov.in/CommonDirect/GetFileView?id=d575554ec59b09e7fde503d3a8b10bd3&fileName=Circular_CMI_reporting_final_pdf_20260409_1010.pdf&TitleName=Legal",
         "raw_text": "This circular establishes the AML/CFT framework for units operating in IFSC. All IFSC units including payment institutions must implement a risk-based AML/CFT program. The framework requires appointment of a dedicated MLRO, establishment of transaction monitoring systems, and filing of STRs within 7 days. Compliance timeline: 90 days from issuance.",
         "ingestion_status": "parsed",
         "analysis": {
@@ -42,9 +42,9 @@ SEED_DATA = [
     },
     {
         "title": "FATF Guidance on Virtual Assets and Virtual Asset Service Providers",
-        "source": "IFSCA",
+        "source": "SEBI",
         "publication_date": "2024-03-10",
-        "source_url": "https://ifsca.gov.in/circular/fatf-va-vasp-guidance-2024",
+        "source_url": "https://www.sebi.gov.in/legal/circulars/apr-2026/one-time-relaxation-with-respect-to-validity-of-sebi-observations_100786.html",
         "raw_text": "FATF has updated its guidance on virtual assets and VASPs. Countries must ensure VASPs are registered or licensed. The travel rule applies to virtual asset transfers above USD 1,000. IFSCA-regulated entities must comply with FATF recommendations as adopted by India.",
         "ingestion_status": "parsed",
         "analysis": {

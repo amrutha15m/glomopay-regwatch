@@ -25,6 +25,7 @@ export default function UploadModal({ open, onClose, onSuccess }: UploadModalPro
   const [uploading, setUploading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [extractedTitle, setExtractedTitle] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const reset = () => {
@@ -32,6 +33,7 @@ export default function UploadModal({ open, onClose, onSuccess }: UploadModalPro
     setError(null)
     setSuccess(false)
     setUploading(false)
+    setExtractedTitle(null)
   }
 
   const handleClose = () => {
@@ -64,6 +66,7 @@ export default function UploadModal({ open, onClose, onSuccess }: UploadModalPro
     setError(null)
     try {
       const result = await uploadDocument(file)
+      setExtractedTitle(result.title ?? null)
       setSuccess(true)
       setTimeout(() => {
         onSuccess(result.document_id)
@@ -78,7 +81,7 @@ export default function UploadModal({ open, onClose, onSuccess }: UploadModalPro
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md w-full">
         <DialogHeader>
           <DialogTitle>Upload Regulatory Document</DialogTitle>
           <DialogDescription>
@@ -89,7 +92,14 @@ export default function UploadModal({ open, onClose, onSuccess }: UploadModalPro
         {success ? (
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <CheckCircle2 className="w-10 h-10 text-emerald-500" />
-            <p className="text-sm font-medium text-slate-200">Document uploaded and queued for analysis!</p>
+            {extractedTitle ? (
+              <div>
+                <p className="text-sm font-medium text-slate-200">{extractedTitle}</p>
+                <p className="text-xs text-slate-500 mt-1">{file?.name}</p>
+              </div>
+            ) : (
+              <p className="text-sm font-medium text-slate-200">Document uploaded and queued for analysis!</p>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
